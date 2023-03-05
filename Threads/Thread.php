@@ -159,8 +159,7 @@ final class Thread
       $this->status[$tid] = ['cancelled'];
       $this->exception[$tid] = new \RuntimeException(\sprintf('Thread %s cancelled!', (string)$tid));
       if (isset($this->threads[$tid]) && $this->threads[$tid] instanceof \UVAsync && \uv_is_active($this->threads[$tid])) {
-        \uv_async_send($this->threads[$tid]);
-        //  $this->join($tid);
+        $this->join($tid);
       }
     }
     \mutex_unlock($lock);

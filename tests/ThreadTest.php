@@ -67,7 +67,6 @@ class ThreadTest extends TestCase
         });
 
         $thread->cancel(44);
-        $thread->join(44);
         $this->assertInstanceOf(\RuntimeException::class, $thread->getException(44));
 
         $this->assertCount(1, $thread->getFailed());
