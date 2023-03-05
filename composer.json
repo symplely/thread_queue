@@ -1,0 +1,46 @@
+{
+    "name": "symplely/thread_queue",
+    "description": "An simply `uv_queue_work` wrapper API to manage a pool of threads, for parallel PHP execution",
+    "keywords": [
+        "parallel",
+        "thread",
+        "uv_queue_work",
+        "libuv",
+        "async",
+        "asynchronous"
+    ],
+    "homepage": "https://github.com/symplely/thread_queue",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Lawrence Stubbs",
+            "email": "lstubbs@techno.express"
+        }
+    ],
+    "require": {
+        "php": "~7.4",
+        "ext-uv": "*"
+    },
+    "autoload": {
+        "files": [
+            "Threads/Core.php"
+        ],
+        "psr-4": {
+            "Async\\Threads\\": [
+                "Threads/"
+            ]
+        }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^8"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Async\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit --bootstrap vendor/autoload.php tests"
+    }
+}

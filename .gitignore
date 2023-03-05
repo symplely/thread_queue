@@ -1,0 +1,7 @@
+build/
+composer.lock
+composer.phar
+vendor/
+*.lock
+.phpunit.result.cache
+test.php

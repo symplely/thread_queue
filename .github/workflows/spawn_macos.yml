@@ -1,0 +1,65 @@
+# GitHub Action for PHP with extensions
+name: macOS
+
+on: [push, pull_request]
+
+jobs:
+  macos:
+    name: macOS CI
+    runs-on: macos-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        operating-system: [macos-latest]
+        php-versions: ['7.2', '7.3', '7.4']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install libuv and PHP build tools
+        run: |
+          brew install libuv
+      - name: Setup PHP, with composer and extensions
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-versions }}
+          extensions: curl, fileinfo, mbstring, openssl, simplexml, dom, sockets, sodium, uv-beta, xdebug
+          coverage: xdebug
+      - name: Check PHP extensions
+        run: php -m
+      - name: Install dependencies
+        run: composer install
+      - name: Test with phpunit
+        run: vendor/bin/phpunit -d zend.enable_gc=0 --coverage-clover=coverage.xml
+      - name: Submit code coverage
+        if: ${{ success() }} || ${{ failure() }}
+        uses: codecov/codecov-action@v1
+        with:
+          file: ./coverage.xml # optional
+
+  macos_php8:
+    name: macOS CI
+    runs-on: macos-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        operating-system: [macos-latest]
+        php-versions: ['8', '8.1']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup PHP, with composer and extensions
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-versions }}
+          extensions: curl, fileinfo, mbstring, openssl, simplexml, dom, sockets, sodium, xdebug
+      - name: Install dependencies
+        run: composer install
+      - name: Test with phpunit
+        run: vendor/bin/phpunit -d zend.enable_gc=0 --coverage-clover=coverage.xml
+      - name: Submit code coverage
+        if: ${{ success() }} || ${{ failure() }}
+        uses: codecov/codecov-action@v1
+        with:
+          file: ./coverage.xml # optional
