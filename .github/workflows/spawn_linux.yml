@@ -31,8 +31,6 @@ jobs:
         run: |
           sudo pecl channel-update pecl.php.net
           sudo pecl install uv-beta
-      - name: Add uv.so to php.ini
-        run: sudo echo "extension=uv.so" >> "$(php -r 'echo php_ini_loaded_file();')"
       - name: Install dependencies
         run: composer install
       - name: Test with phpunit
