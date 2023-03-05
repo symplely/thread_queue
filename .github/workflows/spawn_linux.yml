@@ -25,6 +25,8 @@ jobs:
           php-version: ${{ matrix.php }}
           extensions: mbstring, simplexml, dom, xdebug
           coverage: xdebug
+        env:
+          PHPTS: ts # specify ts or nts
       - name: Build and install PHP-UV extension
         run: |
           sudo pecl channel-update pecl.php.net
