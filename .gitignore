@@ -5,4 +5,4 @@ vendor/
 *.lock
 .phpunit.result.cache
 test.php
-*.json
+.vscode/settings.json
