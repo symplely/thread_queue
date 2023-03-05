@@ -136,9 +136,9 @@ final class Thread
         $async->setException($tid, $exception);
       }
 
-      if (isset($async->threads[$tid]) && $async->threads[$tid] instanceof \UVAsync && \uv_is_active($async->threads[$tid])) {
+      if (isset($async->threads[$tid]) && $async->threads[$tid] instanceof \UVAsync && \uv_is_active($async->threads[$tid]) && !\uv_is_closing($async->threads[$tid])) {
         \uv_async_send($async->threads[$tid]);
-        \sleep(2 * $async->count());
+        \sleep($async->count());
       }
     }, function () {
     });
