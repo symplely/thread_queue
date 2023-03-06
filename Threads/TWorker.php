@@ -11,8 +11,7 @@ use Async\Threads\Thread;
  */
 final class TWorker
 {
-  /** @var Thread|null */
-  protected $threads = null;
+  protected ?Thread $threads = null;
 
   protected $tid = null;
 

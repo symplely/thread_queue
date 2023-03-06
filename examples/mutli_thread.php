@@ -7,7 +7,7 @@ use Async\Threads\Thread;
 $thread = new Thread();
 $counter = 0;
 $t5 = $thread->create(5, function () {
-  usleep(5000);
+  usleep(50000);
   print "Running Thread: 5\n";
   return 2;
 })->then(function (int $output) use (&$counter) {
@@ -27,7 +27,7 @@ $t6 = $thread->create_ex(function () {
 });
 
 $t7 = $thread->create_ex(function () {
-  usleep(500000);
+  usleep(5000000);
   print "Running Thread: 7\n";
 })->then(function (int $output) use (&$counter) {
   $counter += $output;
