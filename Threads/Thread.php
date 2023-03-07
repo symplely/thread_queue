@@ -41,12 +41,46 @@ final class Thread
 
   /** @var boolean for **Coroutine** `yield` usage */
   protected bool $isYield = false;
+  protected $isClosed = false;
+  protected $releaseQueue = false;
   protected $tid = 0;
 
-  protected ?\UVLoop $uv = null;
-  protected ?\UVLock $lock = null;
+  protected static $uv = null;
 
-  public static function isCoroutine($object): bool
+  public static function get_uv(): ?\UVLoop
+  {
+    return self::$uv;
+  }
+
+  public function __destruct()
+  {
+    if (!$this->isClosed)
+      $this->close();
+
+    if (!$this->hasLoop && self::$uv instanceof \UVLoop) {
+      @\uv_stop(self::$uv);
+      @\uv_run(self::$uv);
+      self::$uv = null;
+    }
+
+    $this->successCallbacks = [];
+    $this->errorCallbacks = [];
+    $this->threads = null;
+  }
+
+  public function close()
+  {
+    if (!$this->isClosed) {
+      $this->success = null;
+      $this->failed = null;
+      $this->loop = null;
+      $this->isYield = false;
+      $this->isClosed = true;
+      $this->releaseQueue = true;
+    }
+  }
+
+  protected static function isCoroutine($object): bool
   {
     return (\class_exists('Coroutine', false)
       && \is_object($object)
@@ -65,38 +99,16 @@ final class Thread
     );
   }
 
-  public function __destruct()
-  {
-    if (!\is_null($this->threads)) {
-      $this->successCallbacks = null;
-      $this->errorCallbacks = null;
-      $this->success = null;
-      $this->failed = null;
-      $this->loop = null;
-      $this->lock = null;
-      $this->status = null;
-      $this->threads = null;
-
-      $loop = $this->uv;
-      $this->uv = null;
-      @\uv_stop($loop);
-      @\uv_run($loop);
-      \uv_loop_delete($loop);
-      unset($loop);
-    }
-  }
-
   /**
    * @param object $loop
    * @param \UVLoop|null $uv
    * @param boolean $yielding
    */
-  public function __construct(object $loop = null, bool $yielding = false)
+  public function __construct(object $loop = null, ?\UVLoop $uv = null, bool $yielding = false)
   {
     if (!\ZEND_THREAD_SAFE && !\function_exists('uv_loop_new'))
       throw new \InvalidArgumentException('This `Thread` class requires PHP `ZTS` and the libuv `ext-uv` extension!');
 
-    $uv = null;
     $this->lock = \uv_mutex_init();
     \uv_mutex_lock($this->lock);
     $this->isYield = $yielding;
@@ -109,7 +121,8 @@ final class Thread
       $this->loop = $loop;
     }
 
-    $this->uv = $uv instanceof \UVLoop ? $uv : \uv_loop_new();
+    $uvLoop = $uv instanceof \UVLoop ? $uv : self::$uv;
+    self::$uv = $uvLoop instanceof \UVLoop ? $uvLoop : \uv_default_loop();
     $this->success = $this->isYield ? [$this, 'yieldAsFinished'] : [$this, 'triggerSuccess'];
     $this->failed = $this->isYield ? [$this, 'yieldAsFailed'] : [$this, 'triggerError'];
     \uv_mutex_unlock($this->lock);
@@ -118,7 +131,7 @@ final class Thread
   /**
    * @codeCoverageIgnore
    */
-  public function create_ex(callable $task, ...$args): TWorker
+  public function create_ex(callable $task, ...$args): ?TWorker
   {
     return $this->create(\uniqid(), $task, $args);
   }
@@ -140,17 +153,15 @@ final class Thread
       $this->tid = $tid;
       $this->status[$tid] = 'queued';
       $thread = $this;
-      $this->threads[$tid] = \uv_async_init($this->uv, static function ($async) use (&$thread, &$tid) {
-        $lock = \uv_mutex_init();
-        $sem = \uv_sem_init(0);
+      $this->threads[$tid] = \uv_async_init(self::$uv, static function ($async) use (&$thread, &$tid) {
         $thread->handlers($tid);
-        $thread->release_lock($tid, $sem, $lock, $async);
-        unset($sem, $lock);
+        $thread->remove($tid);
+        \uv_close($async);
       });
 
-      \uv_queue_work($this->uv, static function () use (&$thread, &$task, &$tid, &$args) {
+      \uv_queue_work(self::$uv, static function () use (&$thread, &$task, &$tid, &$args) {
+        include 'vendor/autoload.php';
         $lock = \uv_mutex_init();
-        $sem = \uv_sem_init(0);
         try {
           if (!$thread->isCancelled($tid))
             $result = $task(...$args);
@@ -161,13 +172,14 @@ final class Thread
           $thread->setException($tid, $exception, $lock);
         }
 
-        if (isset($thread->threads[$tid]) && $thread->threads[$tid] instanceof \UVAsync && !\uv_is_closing($thread->threads[$tid])) {
+        if (isset($thread->threads[$tid]) && $thread->threads[$tid] instanceof \UVAsync && \uv_is_active($thread->threads[$tid])) {
           \uv_async_send($thread->threads[$tid]);
-          // $thread->acquire_lock($tid, $sem, $lock);
-          \usleep($thread->count() * 50000);
+          do {
+            \usleep($thread->count());
+          } while (!$thread->releaseQueue);
         }
 
-        unset($sem, $lock);
+        unset($lock);
       }, function () {
       });
       \uv_mutex_unlock($this->lock);
@@ -192,7 +204,7 @@ final class Thread
       $this->exception[$tid] = new \RuntimeException(\sprintf('Thread %s cancelled!', (string)$tid));
       \uv_mutex_unlock($this->lock);
       if (isset($this->threads[$tid]) && $this->threads[$tid] instanceof \UVAsync && \uv_is_active($this->threads[$tid]) && !\uv_is_closing($this->threads[$tid])) {
-        $this->join($tid);
+        \uv_async_send($this->threads[$tid]);
       }
     }
   }
@@ -207,8 +219,8 @@ final class Thread
   public function join($tid = null): void
   {
     $isCoroutine = $this->hasLoop && \is_object($this->loop) && \method_exists($this->loop, 'futureOn') && \method_exists($this->loop, 'futureOff');
-    $isCancelled = $this->isCancelled($tid);
-    while (!\is_null($tid) ? $this->isRunning($tid) || $isCancelled : $this->count() > 0) {
+    $isCancelling = !empty($tid) && $this->isCancelled($tid) && !$this->isEmpty() && \uv_is_active($this->threads[$tid]);
+    while (!empty($tid) ? ($this->isRunning($tid) || $this->isCancelled($tid)) : !$this->isEmpty()) {
       if ($isCoroutine) { // @codeCoverageIgnoreStart
         $this->loop->futureOn();
         $this->loop->run();
@@ -216,12 +228,15 @@ final class Thread
       } elseif ($this->hasLoop) {
         $this->loop->run(); // @codeCoverageIgnoreEnd
       } else {
-        \uv_run($this->uv, (\is_null($tid) ? \UV::RUN_NOWAIT : \UV::RUN_ONCE));
+        \uv_run(self::$uv, !empty($tid) ? \UV::RUN_ONCE : \UV::RUN_NOWAIT);
       }
 
-      if ($isCancelled)
+      if ($isCancelling)
         break;
     }
+
+    if (!empty($tid))
+      $this->releaseQueue = true;
   }
 
   /**
@@ -457,42 +472,12 @@ final class Thread
    * @param string|int $tid Thread ID
    * @return void
    */
-  protected function remove($tid, \UVAsync $async): void
+  protected function remove($tid): void
   {
     if (isset($this->threads[$tid]) && $this->threads[$tid] instanceof \UVAsync) {
       \uv_mutex_lock($this->lock);
       unset($this->threads[$tid]);
       \uv_mutex_unlock($this->lock);
-      \uv_close($async);
-    }
-  }
-
-  public function release_lock($tid, \UVLock $sem, \UVLock $lock, \UVAsync $async): void
-  {
-    if (isset($this->threads[$tid]) && $this->threads[$tid] instanceof \UVAsync) {
-      \uv_mutex_lock($lock);
-      \uv_sem_post($sem);
-      unset($this->threads[$tid]);
-      \uv_mutex_unlock($lock);
-      \uv_close($async);
-    }
-  }
-
-  /**
-   * Decrements `(locks)` the semaphore pointed to by sem's _tid_.
-   *
-   * - If the semaphore's value is greater than zero, then the decrement
-   * proceeds, and the function returns, immediately.
-   * - If the semaphore currently has the value zero, then the call blocks until either it
-   * becomes possible to perform the decrement (i.e., the semaphore value
-   * rises above zero), or a signal handler interrupts the call.
-   */
-  public function acquire_lock($tid, \UVLock $sem, \UVLock $lock): void
-  {
-    if (isset($this->threads[$tid])) {
-      \uv_mutex_lock($lock);
-      \uv_sem_wait($sem);
-      \uv_mutex_unlock($lock);
     }
   }
 
