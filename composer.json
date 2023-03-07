@@ -19,8 +19,7 @@
         }
     ],
     "require": {
-        "php": ">=7.4",
-        "ext-uv": "*"
+        "php": ">7.1"
     },
     "autoload": {
         "psr-4": {
@@ -36,6 +35,9 @@
         "psr-4": {
             "Async\\Tests\\": "tests/"
         }
+    },
+    "suggest": {
+        "ext-uv": ">0.2.4"
     },
     "scripts": {
         "test": "vendor/bin/phpunit --bootstrap vendor/autoload.php tests"
