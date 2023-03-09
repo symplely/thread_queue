@@ -133,7 +133,7 @@ final class Thread
    */
   public function create_ex(callable $task, ...$args): ?TWorker
   {
-    return $this->create(\uniqid(), $task, $args);
+    return $this->create(\bin2hex(\random_bytes(6)), $task, $args);
   }
 
   /**
