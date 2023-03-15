@@ -20,7 +20,7 @@ jobs:
       uses: shivammathur/setup-php@v2
       with:
         php-version: ${{ matrix.php }}
-        extensions: mbstring, simplexml, curl, dom, sockets, fileinfo, openssl, xdebug
+        extensions: mbstring, simplexml, curl, dom, sockets, fileinfo, openssl, xdebug, :opcache
         ini-values: extension=uv
         coverage: xdebug
       env:
