@@ -36,11 +36,12 @@ final class Thread
   /** @var callable */
   protected $failed;
 
-  protected ?object $loop;
-  protected bool $hasLoop = false;
+  /** @var ?object */
+  protected $loop;
+  protected $hasLoop = false;
 
   /** @var boolean for **Coroutine** `yield` usage */
-  protected bool $isYield = false;
+  protected $isYield = false;
   protected $isClosed = false;
   protected $releaseQueue = false;
   protected $tid = 0;
@@ -122,7 +123,7 @@ final class Thread
     }
 
     $uvLoop = $uv instanceof \UVLoop ? $uv : self::$uv;
-    self::$uv = $uvLoop instanceof \UVLoop ? $uvLoop : \uv_default_loop();
+    self::$uv = $uvLoop instanceof \UVLoop ? $uvLoop : \uv_loop_new();
     $this->success = $this->isYield ? [$this, 'yieldAsFinished'] : [$this, 'triggerSuccess'];
     $this->failed = $this->isYield ? [$this, 'yieldAsFailed'] : [$this, 'triggerError'];
     \uv_mutex_unlock($this->lock);
