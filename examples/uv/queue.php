@@ -7,4 +7,4 @@ $queue = uv_queue_work($loop, function () {
     echo "[finished]";
 });
 
-uv_run();
+uv_run($loop);

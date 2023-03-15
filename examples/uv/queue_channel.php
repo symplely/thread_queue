@@ -20,6 +20,6 @@ $function = function () use ($write) {
 }, function () {
 });
 
-\uv_run();
+\uv_run($loop);
 \fclose($write);
 \fclose($read);
