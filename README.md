@@ -9,7 +9,6 @@ An simply __`uv_queue_work`__ wrapper API to _manage_ a **pool** of **threads**,
 * [Installation](#installation)
 * [Usage](#usage)
 * [Event hooks](#event-hooks)
-* [Error handling](#error-handling)
 * [Contributing](#contributing)
 * [License](#license)
 

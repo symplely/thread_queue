@@ -181,7 +181,7 @@ final class Thread
         if (isset($thread->threads[$tid]) && $thread->threads[$tid] instanceof \UVAsync && \uv_is_active($thread->threads[$tid]) && !$isCancelled) {
           \uv_async_send($thread->threads[$tid]);
           do {
-            \usleep($thread->count() * 34000);
+            \usleep($thread->count() * 25000);
           } while (!$thread->releaseQueue);
         }
 
@@ -208,9 +208,12 @@ final class Thread
       \uv_mutex_lock($this->lock);
       $this->status[$tid] = ['cancelled'];
       $this->exception[$tid] = new \RuntimeException(\sprintf('Thread %s cancelled!', (string)$tid));
+      $this->releaseQueue = true;
       \uv_mutex_unlock($this->lock);
       if (isset($this->threads[$tid]) && $this->threads[$tid] instanceof \UVAsync && \uv_is_active($this->threads[$tid]) && !\uv_is_closing($this->threads[$tid])) {
         \uv_async_send($this->threads[$tid]);
+        if (!self::isCoroutine($this->loop))
+          $this->join($tid);
       }
     }
   }
@@ -224,8 +227,8 @@ final class Thread
    */
   public function join($tid = null): void
   {
-    $isCoroutine = $this->hasLoop && \is_object($this->loop) && \method_exists($this->loop, 'futureOn') && \method_exists($this->loop, 'futureOff');
-    $isCancelling = !empty($tid) && $this->isCancelled($tid) && !$this->isEmpty() && \uv_is_active($this->threads[$tid]);
+    $isCoroutine = self::isCoroutine($this->loop);
+    $isCancelling = !empty($tid) && $this->isCancelled($tid);
     while (!empty($tid) ? ($this->isRunning($tid) || $this->isCancelled($tid)) : !$this->isEmpty()) {
       if ($isCoroutine) { // @codeCoverageIgnoreStart
         $this->loop->futureOn();

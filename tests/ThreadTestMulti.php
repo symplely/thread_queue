@@ -15,11 +15,12 @@ class ThreadTestMulti extends TestCase
 
     public function testIt_can_handle_multi()
     {
-        $this->markTestSkipped('Test skipped "currently buggy - zend_mm_heap corrupted');
+        if ('\\' === \DIRECTORY_SEPARATOR)
+            $this->markTestSkipped('buggy');
         $thread = new Thread();
         $counter = 0;
         $t5 = $thread->create_ex(function () {
-            usleep(50000);
+            usleep(100);
             return 2;
         })->then(function (int $output) use (&$counter) {
             $counter += $output;
@@ -37,7 +38,7 @@ class ThreadTestMulti extends TestCase
         });
 
         $t7 = $thread->create_ex(function () {
-            usleep(50000000);
+            sleep(1);
         })->then(function (int $output) use (&$counter) {
             $counter += $output;
         })->catch(function (\Throwable $exception) {
@@ -48,7 +49,8 @@ class ThreadTestMulti extends TestCase
         $this->assertEquals(4, $t6->result());
 
         $t7->cancel();
-        $this->expectExceptionObject($t7->exception());
+        $this->assertInstanceOf('RuntimeException', $t7->exception());
+        $this->assertCount(1, $thread->getFailed());
         $thread->join();
     }
 }
