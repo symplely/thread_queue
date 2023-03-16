@@ -8,7 +8,7 @@ $loop = \uv_default_loop();
 $function = function () use ($write) {
     echo "[queue1]";
     \fwrite($write, "Thread 1\n");
-    \sleep(1);
+    \usleep(1);
 };
 
 \uv_queue_work($loop, $function, function () {
@@ -22,4 +22,3 @@ $function = function () use ($write) {
 
 \uv_run($loop);
 \fclose($write);
-\fclose($read);
