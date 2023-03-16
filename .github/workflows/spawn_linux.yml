@@ -24,8 +24,8 @@ jobs:
         uses: shivammathur/setup-php@v2 #https://github.com/shivammathur/setup-php
         with:
           php-version: ${{ matrix.php }}
-          extensions: mbstring, simplexml, dom, xdebug, :opcache
-          coverage: xdebug
+          extensions: mbstring, simplexml, dom, :opcache
+          coverage: none
         env:
           PHPTS: ts # specify ts or nts
       - name: Build and install PHP-UV extension

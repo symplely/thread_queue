@@ -163,17 +163,22 @@ final class Thread
       \uv_queue_work(self::$uv, static function () use (&$thread, &$task, &$tid, &$args) {
         include 'vendor/autoload.php';
         $lock = \uv_mutex_init();
+        $isCancelled = false;
         try {
-          if (!$thread->isCancelled($tid))
-            $result = $task(...$args);
-
-          if (!$thread->isCancelled($tid))
+          $result = $task(...$args);
+          if ($thread->isCancelled($tid)) {
+            $isCancelled = true;
+            \uv_mutex_lock($lock);
+            $thread->releaseQueue = true;
+            \uv_mutex_unlock($lock);
+          } else {
             $thread->setResult($tid, $result, $lock);
+          }
         } catch (\Throwable $exception) {
           $thread->setException($tid, $exception, $lock);
         }
 
-        if (isset($thread->threads[$tid]) && $thread->threads[$tid] instanceof \UVAsync && \uv_is_active($thread->threads[$tid])) {
+        if (isset($thread->threads[$tid]) && $thread->threads[$tid] instanceof \UVAsync && \uv_is_active($thread->threads[$tid]) && !$isCancelled) {
           \uv_async_send($thread->threads[$tid]);
           do {
             \usleep($thread->count() * 34000);
