@@ -1,6 +1,6 @@
 <?php
 
-namespace TQueue\Tests;
+namespace Async\Tests;
 
 use Async\Threads\Thread;
 use PHPUnit\Framework\TestCase;
@@ -13,10 +13,11 @@ class ThreadTestMulti extends TestCase
             $this->markTestSkipped('Test skipped "uv_loop_new" and "PHP ZTS" missing. currently buggy - zend_mm_heap corrupted');
     }
 
+    /**
+     * @runInSeparateProcess
+     */
     public function testIt_can_handle_multi()
     {
-        if ('\\' === \DIRECTORY_SEPARATOR)
-            $this->markTestSkipped('buggy');
         $thread = new Thread();
         $counter = 0;
         $t5 = $thread->create_ex(function () {
@@ -29,7 +30,6 @@ class ThreadTestMulti extends TestCase
         });
 
         $t6 = $thread->create_ex(function () {
-            usleep(50);
             return 4;
         })->then(function (int $result) use (&$counter) {
             $counter += $result;

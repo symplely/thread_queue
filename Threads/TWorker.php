@@ -6,9 +6,6 @@ namespace Async\Threads;
 
 use Async\Threads\Thread;
 
-/**
- * @codeCoverageIgnore
- */
 final class TWorker
 {
   protected ?Thread $threads = null;
@@ -28,6 +25,8 @@ final class TWorker
 
   /**
    * This method will sends a cancellation request to the thread.
+   * - WILL SKIP `then` callback handlers, _immediately_ execute `catch` handlers.
+   * - WILL NOT stop a thread execution, `uv_cancel` not implemented.
    *
    * @return void
    */

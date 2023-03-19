@@ -165,7 +165,12 @@ final class Thread
         $lock = \uv_mutex_init();
         $isCancelled = false;
         try {
-          $result = $task(...$args);
+          $arguments = \reset($args);
+          if (!\is_array($arguments))
+            $result = $task($arguments);
+          else
+            $result = $task(...$arguments);
+
           if ($thread->isCancelled($tid)) {
             $isCancelled = true;
             \uv_mutex_lock($lock);
@@ -198,6 +203,8 @@ final class Thread
 
   /**
    * This method will sends a cancellation request to the thread.
+   * - WILL SKIP `then` callback handlers, _immediately_ execute `catch` handlers.
+   * - WILL NOT stop a thread execution, `uv_cancel` not implemented.
    *
    * @param string|int $tid Thread ID
    * @return void
