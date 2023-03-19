@@ -9,19 +9,19 @@ $thread = new Thread();
 $channel = new TChannel();
 
 $t2 = $thread->create_ex(function ($read) {
-  return $read->recv();
+    return $read->recv();
 }, $channel)->then(function (string $result) {
-  print $result;
+    print $result . PHP_EOL;;
 })->catch(function (\Throwable $exception) {
-  print $exception->getMessage() . PHP_EOL;
+    print $exception->getMessage() . PHP_EOL;
 });
 
 $thread->create_ex(function ($write) {
-  return $write->send('Thread 1');
+    return $write->send('Thread 1');
 }, $channel)->then(function (int $result) {
-  print $result;
+    print $result . PHP_EOL;
 })->catch(function (\Throwable $e) {
-  print $e->getMessage() . PHP_EOL;
+    print $e->getMessage() . PHP_EOL;
 });
 
 $thread->join();
